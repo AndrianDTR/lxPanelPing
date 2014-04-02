@@ -1,5 +1,5 @@
 #!/bin/bash
 
-echo "77FF77"
+echo "777777"
 
 exit 0

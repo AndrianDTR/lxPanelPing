@@ -34,6 +34,7 @@ typedef struct {
     GtkWidget *widget;
     GtkTooltips *tip;
     gchar* text;
+    gint   width;
     gint   speed;
     gint   wait;
     gint   cnt;
@@ -83,6 +84,7 @@ void ping(Ping *egz)
                 break;
             sprintf(buffer, "<span color=\"#%s\"><b>%s</b></span>", trim(line), egz->text);
             gtk_label_set_markup (GTK_LABEL(egz->widget), buffer);
+            gtk_label_set_width_chars(GTK_LABEL(egz->widget), egz->width);
         }
         pclose(pp);
     }
@@ -149,6 +151,7 @@ static int BuildMonitor_constructor(Plugin *p, char** fp)
     egz = g_new0(Ping, 1);
     egz->plugin = p;
     egz->text   = g_strdup("BUILD");
+    egz->width = 20;
     egz->wait   = egz->speed  = 1;
     p->priv = egz;
 
@@ -159,6 +162,7 @@ static int BuildMonitor_constructor(Plugin *p, char** fp)
     egz->widget = gtk_label_new(" ");
     sprintf(buffer, "<span color=\"#%06x\"><b>%s</b></span>", colors_a[CLR_GREY], egz->text);
     gtk_label_set_markup (GTK_LABEL(egz->widget), buffer);
+    gtk_label_set_width_chars(GTK_LABEL(egz->widget), egz->width);
 
     gtk_container_add(GTK_CONTAINER(p->pwid), egz->widget);
 
@@ -184,6 +188,8 @@ static int BuildMonitor_constructor(Plugin *p, char** fp)
                 if (!g_ascii_strcasecmp(s.t[0], "text")){
                     g_free(egz->text);
                     egz->text = g_strdup(s.t[1]);
+                }else if (!g_ascii_strcasecmp(s.t[0], "width")){
+                    egz->width = atoi(s.t[1]);
                 }else if (!g_ascii_strcasecmp(s.t[0], "speed")){
                     egz->speed = atoi(s.t[1]);
                 }else if (!g_ascii_strcasecmp(s.t[0], "bool")){
@@ -221,6 +227,8 @@ static void applyConfig(Plugin* p)
     if(egz->speed == 0) egz->speed = 1;
     egz->wait  = egz->speed;
     sprintf(buffer, "<span color=\"#%06x\"><b>%s</b></span>", colors_a[CLR_GREY], egz->text);
+    gtk_label_set_markup (GTK_LABEL(egz->widget), buffer);
+    gtk_label_set_width_chars(GTK_LABEL(egz->widget), egz->width);
     update_tooltip(egz);
     RET();
 }
@@ -234,6 +242,7 @@ static void config(Plugin *p, GtkWindow* parent) {
             GTK_WIDGET(parent),
             (GSourceFunc) applyConfig, (gpointer) p,
             _("Text"), &egz->text, CONF_TYPE_STR,
+            _("Max text width"), &egz->width, CONF_TYPE_INT,
             _("Speed"), &egz->speed, CONF_TYPE_INT,
             _("Stop"), &egz->bool, CONF_TYPE_BOOL,
             _("File"), &egz->szFile, CONF_TYPE_FILE_ENTRY,
@@ -259,6 +268,7 @@ static void save_config( Plugin* p, FILE* fp )
     Ping *egz = (Ping *)p->priv;
 
     lxpanel_put_str( fp, "text", egz->text );
+    lxpanel_put_int( fp, "width", egz->width );
     lxpanel_put_int( fp, "speed", egz->speed );
     lxpanel_put_bool( fp, "bool", egz->bool );
     lxpanel_put_str( fp, "file", egz->szFile );
@@ -269,10 +279,10 @@ PluginClass BuildMonitor_plugin_class = {
 
     PLUGINCLASS_VERSIONING,
 
-    type : "BuildMonitor",
-    name : N_("BuildMonitor"),
+    type : "Ping",
+    name : N_("Ping"),
     version: "0.1",
-    description : N_("BuildMonitor...not doing anything"),
+    description : N_("Ping - show operational result."),
 
     constructor : BuildMonitor_constructor,
     destructor  : BuildMonitor_destructor,
