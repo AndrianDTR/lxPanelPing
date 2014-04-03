@@ -1,15 +1,13 @@
 #!/bin/bash
 
-echo "<span color=\"#FF0000\"><b>$1</b> - $2</span>"
+TITLE=$1
+shift
 
-exit 0
-
-CMD=''
-STATUS = "777777"
-ping -w 1 $2
+STATUS="<span color=\"#FF0000\"><b>$TITLE</b></span>"
+ping $*
 RETVAL=$?
 if [ $RETVAL -eq 0 ]; then
-	STATUS="FF7700"
+	STATUS="<span color=\"#00FF00\"><b>$TITLE</b></span>"
     #sshpass -p $4 ssh $3@$1 -p $2 $CMD
 fi
 
