@@ -27,6 +27,8 @@
 
 #include <lxpanel/plugin.h>
 
+#define CLR_GREY    0x777777
+
 typedef struct {
     unsigned int timer;
     Plugin * plugin;
@@ -37,8 +39,6 @@ typedef struct {
     gint   width;
     gint   speed;
     gint   wait;
-    gint   cnt;
-    gint   color;
     gboolean bool;
     gchar* szFile;
     gchar* args;
