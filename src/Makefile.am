@@ -5,16 +5,16 @@ INCLUDES = \
 	$(PACKAGE_CFLAGS) \
 	$(G_CAST_CHECKS)
 
-module_LTLIBRARIES = ping.la
+module_LTLIBRARIES = pm.la
 
 moduledir = $(libdir)/lxpanel/plugins
 
-ping_la_SOURCES = \
-	ping.c
+pm_la_SOURCES = \
+	pm.c
 
-ping_la_LIBADD = \
+pm_la_LIBADD = \
 	$(PACKAGE_LIBS)
 
-ping_la_LDFLAGS = \
+pm_la_LDFLAGS = \
 	-module \
 	@LXPANEL_MODULE@
