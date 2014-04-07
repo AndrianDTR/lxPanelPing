@@ -62,6 +62,8 @@ void ping(PingMonitor *egz)
     char *line = "";
     FILE *pp = NULL;
 
+    if(!egz->args)
+        egz->args = g_strdup("");
     sprintf(cmd, "%s \"%s\" %s", egz->szFile, egz->text, egz->args);
 
 	pp = popen(cmd, "r");
@@ -141,6 +143,8 @@ static int pm_constructor(Plugin *p, char** fp)
     egz = g_new0(PingMonitor, 1);
     egz->plugin = p;
     egz->text   = g_strdup("PING");
+    egz->szFile = g_strdup("");
+    egz->args   = g_strdup("");
     egz->width  = 20;
     egz->wait   = egz->speed  = 1;
     p->priv     = egz;
@@ -222,24 +226,23 @@ static int pm_constructor(Plugin *p, char** fp)
     gtk_widget_show(egz->widget); /* show plugin on panel */
     RET(TRUE);
 error:
-    destructor( p );
+    destructor(p);
     RET(FALSE);
 }
 
 static void applyConfig(Plugin* p)
 {
     ENTER;
-    PingMonitor *egz = (PingMonitor *) p->priv;
-    gchar buffer [60];
+    PingMonitor *egz = (PingMonitor *)p->priv;
+    gchar buffer[60];
 
     if(egz->speed == 0)
     	egz->speed = 1;
     egz->wait  = egz->speed;
 
-    sprintf(buffer, "<span color=\"#%06x\"><b>%s</b></span>", CLR_GREY, egz->text);
-    gtk_label_set_markup (GTK_LABEL(egz->widget), buffer);
-    gtk_label_set_width_chars(GTK_LABEL(egz->widget), egz->width);
+    ping(egz);
     update_tooltip(egz);
+
     RET();
 }
 
