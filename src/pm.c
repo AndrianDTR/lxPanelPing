@@ -285,10 +285,10 @@ static void config(Plugin *p, GtkWindow* parent) {
             GTK_WIDGET(parent),
             (GSourceFunc) applyConfig, (gpointer) p,
             _("Text"), &egz->text, CONF_TYPE_STR,
-            _("Label width"), &egz->width, CONF_TYPE_INT,
-            _("Speed"), &egz->speed, CONF_TYPE_INT,
-            _("Stop"), &egz->bool, CONF_TYPE_BOOL,
-            _("Script"), &egz->szFile, CONF_TYPE_FILE_ENTRY,
+            _("Label width on panel"), &egz->width, CONF_TYPE_INT,
+            _("Run script every (seconds)"), &egz->speed, CONF_TYPE_INT,
+            _("Stop timer"), &egz->bool, CONF_TYPE_BOOL,
+            _("Script path"), &egz->szFile, CONF_TYPE_FILE_ENTRY,
             _("Script args"), &egz->args, CONF_TYPE_STR,
             NULL);
     gtk_window_present(GTK_WINDOW(dialog));
