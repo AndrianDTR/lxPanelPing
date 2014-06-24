@@ -82,17 +82,47 @@ void ping(PingMonitor *egz)
     }
 }
 
+G_LOCK_DEFINE_STATIC (pingLock);
+
+void *pingThread(void *args)
+{
+    PingMonitor *data = (PingMonitor*)args;
+  
+    /* get GTK thread lock */
+    gdk_threads_enter();
+
+    /* lock the yes_or_no_variable */
+    G_LOCK(pingLock);
+
+    /* set label text */
+    ping(data);
+
+    /* Unlock the yes_or_no variable */
+    G_UNLOCK (pingLock);
+
+    /* release GTK thread lock */
+    gdk_threads_leave ();
+
+    return NULL;
+}
+
+void runPing(PingMonitor* egz)
+{
+    pthread_t pingTid;
+
+    pthread_create(&pingTid, NULL, pingThread, egz);
+}
+
 gboolean button_press_event(GtkWidget *widget, GdkEventButton* event, PingMonitor* egz)
 {
     ENTER2;
 
     if(event->button == 1) /* left button */
     {
-    	ping(egz);
+    	runPing(egz);
     }
     else if(event->button == 2) /* middle button */
     {
-        ping(egz);
     }
     else if(event->button == 3)  /* right button */
     {
@@ -116,7 +146,7 @@ static gint timer_event(PingMonitor *egz)
     if(--egz->wait) return TRUE;
     egz->wait = egz->speed;
 
-    ping(egz);
+    runPing(egz);
 
     return TRUE;
 }
@@ -240,7 +270,7 @@ static void applyConfig(Plugin* p)
     	egz->speed = 1;
     egz->wait  = egz->speed;
 
-    ping(egz);
+    runPing(egz);
     update_tooltip(egz);
 
     RET();
