@@ -3,7 +3,9 @@
  * Copyright (c) 2014 Andrian Yablonskyy (andrian.yablonskyy@gmail.com).
  *
  * This program is free software; you can redistribute it and/or modify it
- * for personal or commercial use even if author name is specified.
+ * for personal or commercial use.
+ * 
+ * Any use of this Program or its part requires link to this Program author name.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of

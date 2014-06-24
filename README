@@ -1,1 +1,16 @@
-Ping plugin - execute a script that return color code to indicate operation status.
+Ping Monitor - LXDE panel plugin that execute a script by timer event or by left click on panel item. 
+It can be used to monitor status of any process, event or action (ex. IP address ping).
+
+Usage:
+	Just specify executable script path is Script field and its parameters in Args field.
+	Example of the script file you can find in 'examples' folder.
+	
+Config example:
+	Field                        Value
+	-------                      -----------
+	Text                         TUNNEL #3
+	Label width on panel         15
+	Run script every (seconds)   60
+	Stop timer                   
+	Script path                  ~/bin/ip-tun.sh
+	Script args                  tun3 FF0000 FFFF00
