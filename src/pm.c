@@ -1,20 +1,13 @@
 /**
  *
- * Copyright (c) 2009 LxDE Developers, see the file AUTHORS for details.
+ * Copyright (c) 2014 Andrian Yablonskyy (andrian.yablonskyy@gmail.com).
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * for personal or commercial use even if author name is specified.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  */
 
@@ -30,31 +23,36 @@
 #define CLR_GREY    0x777777
 
 typedef struct {
-    unsigned int timer;
-    Plugin * plugin;
-    GtkWidget *main;
-    GtkWidget *widget;
-    GtkTooltips *tip;
-    gchar* text;
-    gint   width;
-    gint   speed;
-    gint   wait;
-    gboolean bool;
-    gchar* szFile;
-    gchar* args;
-} PingMonitor;
+    unsigned int    timer;
+    Plugin*         plugin;
+    GtkWidget*      main;
+    GtkWidget*      widget;
+    GtkTooltips*    tip;
+    gchar*          text;
+    gint            width;
+    gint            speed;
+    gint            wait;
+    gboolean        start;
+    gchar*          szFile;
+    gchar*          args;
+} tPingMonitor;
+
+G_LOCK_DEFINE_STATIC (pingLock);
 
 char* trim(char*s)
 {
     char *end = s + strlen(s)-1;
+    
     while(*s && isspace(*s))
         *s++ = 0;
+    
     while(isspace(*end))
         *end-- = 0;
+    
     return s;
 }
 
-void ping(PingMonitor *egz)
+void ping(tPingMonitor *egz)
 {
 	char cmd[255] = {0};
     char out[255] = {0};
@@ -62,71 +60,76 @@ void ping(PingMonitor *egz)
     char *line = "";
     FILE *pp = NULL;
 
+    G_LOCK(pingLock);
+            
     if(!egz->args)
         egz->args = g_strdup("");
+
     sprintf(cmd, "%s \"%s\" %s", egz->szFile, egz->text, egz->args);
 
+    G_UNLOCK (pingLock);
+
 	pp = popen(cmd, "r");
-    if (pp != NULL)
+    if(pp != NULL)
     {
         while (1)
         {
             line = fgets(out, sizeof out, pp);
+            
             if(!line) 
                 break;
+
             sprintf(buffer, "<span>%s</span>", trim(line));
+
+            G_LOCK(pingLock);
+   
             gtk_label_set_markup (GTK_LABEL(egz->widget), buffer);
             gtk_label_set_width_chars(GTK_LABEL(egz->widget), egz->width);
+
+            G_UNLOCK (pingLock);
         }
         pclose(pp);
     }
 }
 
-G_LOCK_DEFINE_STATIC (pingLock);
-
 void *pingThread(void *args)
 {
-    PingMonitor *data = (PingMonitor*)args;
+    tPingMonitor *data = (tPingMonitor*)args;
   
-    /* get GTK thread lock */
     gdk_threads_enter();
 
-    /* lock the yes_or_no_variable */
-    G_LOCK(pingLock);
-
-    /* set label text */
     ping(data);
 
-    /* Unlock the yes_or_no variable */
-    G_UNLOCK (pingLock);
-
-    /* release GTK thread lock */
     gdk_threads_leave ();
 
     return NULL;
 }
 
-void runPing(PingMonitor* egz)
+void runPing(tPingMonitor* egz)
 {
     pthread_t pingTid;
 
     pthread_create(&pingTid, NULL, pingThread, egz);
 }
 
-gboolean button_press_event(GtkWidget *widget, GdkEventButton* event, PingMonitor* egz)
+gboolean button_press_event(GtkWidget *widget, GdkEventButton* event, tPingMonitor* egz)
 {
     ENTER2;
 
-    if(event->button == 1) /* left button */
+    /* left button */
+    if(event->button == 1) 
     {
     	runPing(egz);
     }
-    else if(event->button == 2) /* middle button */
+    /* middle button */
+    else if(event->button == 2)
     {
     }
-    else if(event->button == 3)  /* right button */
+    /* right button */
+    else if(event->button == 3)  
     {
-        GtkMenu* popup = (GtkMenu*)lxpanel_get_panel_menu(egz->plugin->panel, egz->plugin, FALSE ); /* lxpanel_menu, can be reimplemented */
+        /* lxpanel_menu, can be reimplemented */
+        GtkMenu* popup = (GtkMenu*)lxpanel_get_panel_menu(egz->plugin->panel, egz->plugin, FALSE );
         gtk_menu_popup(popup, NULL, NULL, NULL, NULL, event->button, event->time);
         return TRUE;
     }
@@ -140,10 +143,14 @@ gboolean scroll_event (GtkWidget *widget, GdkEventScroll *event, Plugin* plugin)
     RET2(TRUE);
 }
 
-static gint timer_event(PingMonitor *egz)
+static gint timer_event(tPingMonitor *egz)
 {
-    if(egz->bool) return TRUE;
-    if(--egz->wait) return TRUE;
+    if(egz->start) 
+        return TRUE;
+    
+    if(--egz->wait)
+        return TRUE;
+    
     egz->wait = egz->speed;
 
     runPing(egz);
@@ -151,7 +158,7 @@ static gint timer_event(PingMonitor *egz)
     return TRUE;
 }
 
-static gint update_tooltip(PingMonitor *egz)
+static gint update_tooltip(tPingMonitor *egz)
 {
     char *tooltip;
     ENTER;
@@ -165,12 +172,13 @@ static gint update_tooltip(PingMonitor *egz)
 
 static int pm_constructor(Plugin *p, char** fp)
 {
-    PingMonitor *egz;
+    tPingMonitor *egz;
     char buffer [60];
 
     ENTER;
+    
     /* initialization */
-    egz = g_new0(PingMonitor, 1);
+    egz = g_new0(tPingMonitor, 1);
     egz->plugin = p;
     egz->text   = g_strdup("PING");
     egz->szFile = g_strdup("");
@@ -200,18 +208,19 @@ static int pm_constructor(Plugin *p, char** fp)
     line s;
     s.len = 256;
 
-    if (fp)
+    if(fp)
     {
-        while (lxpanel_get_line(fp, &s) != LINE_BLOCK_END)
+        while(lxpanel_get_line(fp, &s) != LINE_BLOCK_END)
         {
             if(s.type == LINE_NONE)
             {
                 ERR( "Ping Monitor: illegal token %s\n", s.str);
                 goto error;
             }
+            
             if(s.type == LINE_VAR)
             {
-                if (!g_ascii_strcasecmp(s.t[0], "text"))
+                if(!g_ascii_strcasecmp(s.t[0], "text"))
                 {
                     g_free(egz->text);
                     egz->text = g_strdup(s.t[1]);
@@ -224,15 +233,15 @@ static int pm_constructor(Plugin *p, char** fp)
                 {
                     egz->speed = atoi(s.t[1]);
                 }
-                else if(!g_ascii_strcasecmp(s.t[0], "bool"))
+                else if(!g_ascii_strcasecmp(s.t[0], "start"))
                 {
-                    egz->bool = atoi(s.t[1]); /* 0=false, 1=true */
+                    egz->start = atoi(s.t[1]); /* 0=false, 1=true */
                 }
                 else if(!g_ascii_strcasecmp(s.t[0], "file"))
                 {
                     egz->szFile = g_strdup(s.t[1]);
                 }
-                else if (!g_ascii_strcasecmp(s.t[0], "args"))
+                else if(!g_ascii_strcasecmp(s.t[0], "args"))
                 {
                     g_free(egz->args);
                     egz->args = g_strdup(s.t[1]);
@@ -251,10 +260,13 @@ static int pm_constructor(Plugin *p, char** fp)
         }
     }
 
-    egz->timer = g_timeout_add(1000, (GSourceFunc) timer_event, (gpointer)egz); /* set timer */
+    /* set timer */
+    egz->timer = g_timeout_add(1000, (GSourceFunc) timer_event, (gpointer)egz);
 
-    gtk_widget_show(egz->widget); /* show plugin on panel */
+    /* show plugin on panel */
+    gtk_widget_show(egz->widget);
     RET(TRUE);
+
 error:
     destructor(p);
     RET(FALSE);
@@ -263,11 +275,12 @@ error:
 static void applyConfig(Plugin* p)
 {
     ENTER;
-    PingMonitor *egz = (PingMonitor *)p->priv;
+    tPingMonitor *egz = (tPingMonitor *)p->priv;
     gchar buffer[60];
 
     if(egz->speed == 0)
     	egz->speed = 1;
+    
     egz->wait  = egz->speed;
 
     runPing(egz);
@@ -276,18 +289,19 @@ static void applyConfig(Plugin* p)
     RET();
 }
 
-static void config(Plugin *p, GtkWindow* parent) {
+static void config(Plugin *p, GtkWindow* parent)
+{
     ENTER;
 
     GtkWidget *dialog;
-    PingMonitor *egz = (PingMonitor *) p->priv;
+    tPingMonitor *egz = (tPingMonitor *) p->priv;
     dialog = create_generic_config_dlg(_(p->class->name),
             GTK_WIDGET(parent),
             (GSourceFunc) applyConfig, (gpointer) p,
             _("Text"), &egz->text, CONF_TYPE_STR,
             _("Label width on panel"), &egz->width, CONF_TYPE_INT,
             _("Run script every (seconds)"), &egz->speed, CONF_TYPE_INT,
-            _("Stop timer"), &egz->bool, CONF_TYPE_BOOL,
+            _("Stop timer"), &egz->start, CONF_TYPE_BOOL,
             _("Script path"), &egz->szFile, CONF_TYPE_FILE_ENTRY,
             _("Script args"), &egz->args, CONF_TYPE_STR,
             NULL);
@@ -298,23 +312,23 @@ static void config(Plugin *p, GtkWindow* parent) {
 
 static void pm_destructor(Plugin *p)
 {
-  ENTER;
-  PingMonitor *egz = (PingMonitor *)p->priv;
-  g_source_remove(egz->timer);
-  g_free(egz->text);
-  g_free(egz);
-  RET();
+    ENTER;
+    tPingMonitor *egz = (tPingMonitor *)p->priv;
+    g_source_remove(egz->timer);
+    g_free(egz->text);
+    g_free(egz);
+RET();
 }
 
 static void save_config(Plugin* p, FILE* fp)
 {
     ENTER;
-    PingMonitor *egz = (PingMonitor *)p->priv;
+    tPingMonitor *egz = (tPingMonitor *)p->priv;
 
     lxpanel_put_str(fp, "text", egz->text);
     lxpanel_put_int(fp, "width", egz->width);
     lxpanel_put_int(fp, "speed", egz->speed);
-    lxpanel_put_bool(fp, "bool", egz->bool);
+    lxpanel_put_bool(fp, "start", egz->start);
     lxpanel_put_str(fp, "file", egz->szFile);
     lxpanel_put_str(fp, "args", egz->args);
     RET();
@@ -327,7 +341,7 @@ PluginClass pm_plugin_class = {
     type : "pm",
     name : N_("Ping Monitor"),
     version: "0.1",
-    description : N_("Ping Monitor - show operational result."),
+    description : N_("Ping Monitor - status monitor for any process, event or action."),
 
     constructor : pm_constructor,
     destructor  : pm_destructor,
